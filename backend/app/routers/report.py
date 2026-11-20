@@ -7,6 +7,7 @@ from fastapi import APIRouter, HTTPException, Query, Request
 
 from app.schemas import ActionResult, EntryPayload, PageResult
 from app.services.report import ReportService
+from app.services.share_allocate import CALIBERS
 
 router = APIRouter(prefix="/api/report", tags=["采集报告"])
 
@@ -14,6 +15,19 @@ service = ReportService()
 
 LIST_FIELDS = ["报告编号", "采集源", "统计周期", "总采集量", "成功量", "失败量", "平均耗秒", "生成时间"]
 STATUSES = ["生成中", "已生成", "已发送"]
+
+
+@router.get("/shared_allocation")
+def get_shared_allocation_report(
+    caliber: str = Query(default="full", description="full=考核全额各计 / split=按分钟拆分 / primary=主责承担"),
+    team_id: str | None = Query(default=None, description="按团队编号过滤分部门明细"),
+    start: str | None = Query(default=None),
+    end: str | None = Query(default=None),
+) -> dict[str, Any]:
+    """基于共享源采集分摊表生成采集报告：分部门来源明细 + 整体对账行。"""
+    if caliber not in CALIBERS:
+        raise HTTPException(status_code=400, detail=f"口径仅支持：{', '.join(CALIBERS)}")
+    return service.build_shared_report(caliber=caliber, team_id=team_id, start=start, end=end)
 
 
 @router.get("/export")
